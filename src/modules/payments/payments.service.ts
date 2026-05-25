@@ -1,123 +1,166 @@
-import crypto from "crypto";
 import { config } from "../../config/env";
 
-interface PayFastData { [key: string]: string; }
+type PayPalLink = {
+  href: string;
+  rel: string;
+  method?: string;
+};
 
-const PAYFAST_SIGNATURE_FIELD_ORDER = [
-  "merchant_id",
-  "merchant_key",
-  "return_url",
-  "cancel_url",
-  "notify_url",
-  "name_first",
-  "name_last",
-  "email_address",
-  "cell_number",
-  "m_payment_id",
-  "amount",
-  "item_name",
-  "item_description",
-  "custom_int1",
-  "custom_int2",
-  "custom_int3",
-  "custom_int4",
-  "custom_int5",
-  "custom_str1",
-  "custom_str2",
-  "custom_str3",
-  "custom_str4",
-  "custom_str5",
-  "email_confirmation",
-  "confirmation_address",
-  "payment_method",
-];
+type PayPalOrderResponse = {
+  id: string;
+  status: string;
+  links?: PayPalLink[];
+};
 
-const payFastEncode = (value: string): string =>
-  encodeURIComponent(value.trim())
-    .replace(/[!'()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`)
-    .replace(/%20/g, "+");
+type PayPalCaptureResponse = {
+  id: string;
+  status: string;
+  purchase_units?: Array<{
+    payments?: {
+      captures?: Array<{
+        id: string;
+        status: string;
+      }>;
+    };
+  }>;
+};
 
 const cleanValue = (value: string): string => value.trim();
 
-const isLocalUrl = (url: string): boolean => {
-  try {
-    const hostname = new URL(url).hostname;
-    return hostname === "localhost" || hostname === "127.0.0.1";
-  } catch {
-    return false;
-  }
-};
-
-const convertUsdToZar = (usdAmount: number): number => {
-  const rate = config.payfast.usdToZarRate;
-
-  if (!Number.isFinite(rate) || rate <= 0) {
-    throw new Error("PAYFAST_USD_TO_ZAR_RATE must be a positive number");
-  }
-
-  return Math.round(usdAmount * rate * 100) / 100;
-};
-
 export class PaymentsService {
-  getSignatureString(data: PayFastData): string {
-    const query = PAYFAST_SIGNATURE_FIELD_ORDER
-      .filter((k) => k !== "signature" && data[k] !== undefined && data[k] !== "")
-      .map((k) => `${k}=${payFastEncode(data[k])}`)
-      .join("&");
-    const passphrase = config.payfast.passphrase.trim();
-    return passphrase ? `${query}&passphrase=${payFastEncode(passphrase)}` : query;
-  }
+  private accessToken?: { value: string; expiresAt: number };
 
-  generateSignature(data: PayFastData): string {
-    return crypto.createHash("md5").update(this.getSignatureString(data)).digest("hex");
-  }
-
-  buildCheckoutPayload(params: {
-    customerName: string;
-    customerEmail: string;
-    productName: string;
-    amount: number;
-    orderId: string;
-    returnUrl?: string;
-    cancelUrl?: string;
-  }) {
-    const zarAmount = convertUsdToZar(params.amount);
-    const data: PayFastData = {
-      merchant_id: cleanValue(config.payfast.merchantId),
-      merchant_key: cleanValue(config.payfast.merchantKey),
-      return_url: cleanValue(params.returnUrl || config.payfast.returnUrl),
-      cancel_url: cleanValue(params.cancelUrl || config.payfast.cancelUrl),
-      name_first: cleanValue(params.customerName.split(" ")[0]),
-      name_last: cleanValue(params.customerName.split(" ").slice(1).join(" ") || ""),
-      email_address: cleanValue(params.customerEmail),
-      cell_number: "",
-      m_payment_id: cleanValue(params.orderId),
-      amount: zarAmount.toFixed(2),
-      item_name: cleanValue(params.productName),
-      item_description: cleanValue(params.productName),
-      custom_str1: `USD ${params.amount.toFixed(2)}`,
-      custom_str2: `USD_ZAR ${config.payfast.usdToZarRate}`,
-    };
-
-    if (config.payfast.notifyUrl && !isLocalUrl(config.payfast.notifyUrl)) {
-      data.notify_url = cleanValue(config.payfast.notifyUrl);
+  private async getAccessToken(): Promise<string> {
+    if (this.accessToken && this.accessToken.expiresAt > Date.now() + 60_000) {
+      return this.accessToken.value;
     }
 
-    data.signature = this.generateSignature(data);
-    return { data, actionUrl: config.payfast.url };
+    if (!config.paypal.clientId || !config.paypal.clientSecret) {
+      throw new Error("PayPal credentials are not configured");
+    }
+
+    const credentials = Buffer.from(`${config.paypal.clientId}:${config.paypal.clientSecret}`).toString("base64");
+    const response = await fetch(`${config.paypal.apiUrl}/v1/oauth2/token`, {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${credentials}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: "grant_type=client_credentials",
+    });
+
+    const body = await response.json() as { access_token?: string; expires_in?: number; error_description?: string };
+
+    if (!response.ok || !body.access_token) {
+      throw new Error(body.error_description || "Could not authenticate with PayPal");
+    }
+
+    this.accessToken = {
+      value: body.access_token,
+      expiresAt: Date.now() + ((body.expires_in || 300) * 1000),
+    };
+
+    return body.access_token;
   }
 
-  verifyITN(rawBody: Buffer): { valid: boolean; data?: PayFastData; reason?: string } {
-    const params = new URLSearchParams(rawBody.toString());
-    const pfData: PayFastData = {};
-    params.forEach((v, k) => { pfData[k] = v; });
+  private async requestPayPal<T>(path: string, init: RequestInit): Promise<T> {
+    const token = await this.getAccessToken();
+    const response = await fetch(`${config.paypal.apiUrl}${path}`, {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        ...(init.headers || {}),
+      },
+    });
 
-    const received = pfData.signature;
-    const { signature, ...rest } = pfData;
-    const calculated = this.generateSignature(rest);
+    const body = await response.json().catch(() => ({})) as T & { message?: string; details?: Array<{ issue?: string; description?: string }> };
 
-    if (received !== calculated) return { valid: false, reason: "Signature mismatch" };
-    return { valid: true, data: pfData };
+    if (!response.ok) {
+      const detail = body.details?.[0]?.description || body.details?.[0]?.issue || body.message;
+      throw new Error(detail || "PayPal request failed");
+    }
+
+    return body as T;
+  }
+
+  async createCheckout(params: {
+    orderId: string;
+    productName: string;
+    amount: number;
+    currency: string;
+    returnUrl: string;
+    cancelUrl: string;
+  }): Promise<{ paypalOrderId: string; approvalUrl: string; status: string }> {
+    if (config.paypal.mode === "mock") {
+      const paypalOrderId = `MOCK-${cleanValue(params.orderId)}`;
+      return {
+        paypalOrderId,
+        approvalUrl: `${params.returnUrl}&token=${encodeURIComponent(paypalOrderId)}`,
+        status: "CREATED",
+      };
+    }
+
+    const currency = cleanValue(params.currency || config.paypal.currency).toUpperCase();
+    const order = await this.requestPayPal<PayPalOrderResponse>("/v2/checkout/orders", {
+      method: "POST",
+      headers: {
+        "PayPal-Request-Id": cleanValue(params.orderId),
+      },
+      body: JSON.stringify({
+        intent: "CAPTURE",
+        purchase_units: [{
+          reference_id: cleanValue(params.orderId),
+          description: cleanValue(params.productName),
+          amount: {
+            currency_code: currency,
+            value: params.amount.toFixed(2),
+          },
+        }],
+        payment_source: {
+          paypal: {
+            experience_context: {
+              brand_name: "Bakone Trades",
+              landing_page: "LOGIN",
+              user_action: "PAY_NOW",
+              return_url: params.returnUrl,
+              cancel_url: params.cancelUrl,
+            },
+          },
+        },
+      }),
+    });
+
+    const approvalUrl = order.links?.find((link) => link.rel === "approve" || link.rel === "payer-action")?.href;
+
+    if (!order.id || !approvalUrl) {
+      throw new Error("PayPal did not return an approval URL");
+    }
+
+    return { paypalOrderId: order.id, approvalUrl, status: order.status };
+  }
+
+  async captureOrder(paypalOrderId: string): Promise<{ paypalOrderId: string; captureId: string; status: string }> {
+    if (config.paypal.mode === "mock") {
+      return {
+        paypalOrderId,
+        captureId: `MOCK-CAPTURE-${paypalOrderId.replace(/^MOCK-/, "")}`,
+        status: "COMPLETED",
+      };
+    }
+
+    const capture = await this.requestPayPal<PayPalCaptureResponse>(
+      `/v2/checkout/orders/${encodeURIComponent(paypalOrderId)}/capture`,
+      { method: "POST", body: "{}" }
+    );
+    const captureId = capture.purchase_units?.[0]?.payments?.captures?.[0]?.id || capture.id;
+
+    return {
+      paypalOrderId: capture.id,
+      captureId,
+      status: capture.status,
+    };
   }
 }
+
 export const paymentsService = new PaymentsService();

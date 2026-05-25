@@ -5,11 +5,11 @@ import { HealthStatus, ServiceStatus } from "./health.model";
 export class HealthService {
   async getHealth(): Promise<HealthStatus> {
     const dbStatus = await this.checkDatabase();
-    const payfastStatus = await this.checkPayfast();
+    const paypalStatus = await this.checkPayPal();
     const emailStatus = this.checkEmail();
 
-    const allOk = [dbStatus, payfastStatus, emailStatus].every((s) => s.status === "ok");
-    const anyDown = [dbStatus, payfastStatus, emailStatus].some((s) => s.status === "down");
+    const allOk = [dbStatus, paypalStatus, emailStatus].every((s) => s.status === "ok");
+    const anyDown = [dbStatus, paypalStatus, emailStatus].some((s) => s.status === "down");
 
     return {
       status: allOk ? "ok" : anyDown ? "down" : "degraded",
@@ -20,7 +20,7 @@ export class HealthService {
       services: {
         database: dbStatus,
         email: emailStatus,
-        payfast: payfastStatus,
+        paypal: paypalStatus,
       },
     };
   }
@@ -36,20 +36,16 @@ export class HealthService {
     }
   }
 
-  private async checkPayfast(): Promise<ServiceStatus> {
+  private async checkPayPal(): Promise<ServiceStatus> {
     const start = Date.now();
     try {
-      const isSandbox = config.payfast.mode === "sandbox";
-      const url = isSandbox
-        ? "https://sandbox.payfast.co.za"
-        : "https://www.payfast.co.za";
-      const res = await fetch(url, { method: "HEAD", signal: AbortSignal.timeout(5000) });
+      const res = await fetch(config.paypal.apiUrl, { method: "HEAD", signal: AbortSignal.timeout(5000) });
       return {
         status: res.ok || res.status < 500 ? "ok" : "down",
         latency_ms: Date.now() - start,
       };
     } catch {
-      return { status: "down", message: "PayFast unreachable" };
+      return { status: "down", message: "PayPal unreachable" };
     }
   }
 

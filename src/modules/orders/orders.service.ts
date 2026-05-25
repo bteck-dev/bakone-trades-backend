@@ -42,12 +42,12 @@ export class OrdersService {
     return data as Order;
   }
 
-  async markAsPaid(orderId: string, payfastPaymentId: string): Promise<Order> {
+  async markAsPaid(orderId: string, paymentReferenceId: string): Promise<Order> {
     const { data, error } = await supabase
       .from("orders")
       .update({
         payment_status: ORDER_STATUS.PAID,
-        payfast_payment_id: payfastPaymentId,
+        payfast_payment_id: paymentReferenceId,
         updated_at: new Date().toISOString(),
       })
       .eq("order_id", orderId)
@@ -71,12 +71,12 @@ export class OrdersService {
     return data as Order;
   }
 
-  async markAsFailed(orderId: string, payfastPaymentId?: string): Promise<Order> {
+  async markAsFailed(orderId: string, paymentReferenceId?: string): Promise<Order> {
     const { data, error } = await supabase
       .from("orders")
       .update({
         payment_status: ORDER_STATUS.FAILED,
-        payfast_payment_id: payfastPaymentId || null,
+        payfast_payment_id: paymentReferenceId || null,
         updated_at: new Date().toISOString(),
       })
       .eq("order_id", orderId)

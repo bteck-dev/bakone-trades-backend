@@ -7,15 +7,17 @@ const parseOrigins = (value?: string): string[] => {
 };
 
 const isProduction = process.env.NODE_ENV === "production";
-const payfastMode = (process.env.PAYFAST_MODE || "sandbox").toLowerCase();
-const isPayfastProduction = payfastMode === "production" || payfastMode === "live";
+const paypalMode = (process.env.PAYPAL_MODE || "sandbox").toLowerCase();
+const isPaypalProduction = paypalMode === "production" || paypalMode === "live";
+const isPaypalMock = !isProduction && paypalMode === "mock";
 const requiredProductionEnv = [
   "JWT_SECRET",
   "SUPABASE_URL",
   "SUPABASE_SERVICE_ROLE_KEY",
-  "PAYFAST_MERCHANT_ID",
-  "PAYFAST_MERCHANT_KEY",
-  "PAYFAST_NOTIFY_URL",
+  "PAYPAL_CLIENT_ID",
+  "PAYPAL_CLIENT_SECRET",
+  "PAYPAL_RETURN_URL",
+  "PAYPAL_CANCEL_URL",
   "RESEND_API_KEY",
   "EMAIL_FROM",
   "ADMIN_EMAIL",
@@ -46,19 +48,14 @@ export const config = {
     url: process.env.SUPABASE_URL || "",
     serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
   },
-  payfast: {
-    merchantId: process.env.PAYFAST_MERCHANT_ID || "",
-    merchantKey: process.env.PAYFAST_MERCHANT_KEY || "",
-    passphrase: process.env.PAYFAST_PASSPHRASE || "",
-    mode: isPayfastProduction ? "production" : "sandbox",
-    url:
-      isPayfastProduction
-        ? "https://www.payfast.co.za/eng/process"
-        : "https://sandbox.payfast.co.za/eng/process",
-    returnUrl: process.env.PAYFAST_RETURN_URL || "",
-    cancelUrl: process.env.PAYFAST_CANCEL_URL || "",
-    notifyUrl: process.env.PAYFAST_NOTIFY_URL || "",
-    usdToZarRate: Number(process.env.PAYFAST_USD_TO_ZAR_RATE || "18.50"),
+  paypal: {
+    clientId: process.env.PAYPAL_CLIENT_ID || "",
+    clientSecret: process.env.PAYPAL_CLIENT_SECRET || "",
+    mode: isPaypalMock ? "mock" : isPaypalProduction ? "production" : "sandbox",
+    apiUrl: isPaypalProduction ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com",
+    returnUrl: process.env.PAYPAL_RETURN_URL || process.env.FRONTEND_URL || "",
+    cancelUrl: process.env.PAYPAL_CANCEL_URL || process.env.FRONTEND_URL || "",
+    currency: process.env.PAYPAL_CURRENCY || "USD",
   },
   email: {
     from: process.env.EMAIL_FROM || "",

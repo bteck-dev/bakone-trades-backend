@@ -44,8 +44,6 @@ app.use(rateLimit({
 }));
 
 // ── Body Parsers ────────────────────────────────────────────
-// PayFast ITN needs raw body
-app.use("/api/payments/notify", express.raw({ type: "*/*" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

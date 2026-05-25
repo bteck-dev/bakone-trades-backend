@@ -4,9 +4,7 @@ This backend is an Express API and should be deployed separately from the Vite f
 
 ## Required Environment
 
-Use `.env.example` as the template for your hosting provider.
-
-Important production values:
+Use your local `.env` values as the template for your hosting provider.
 
 ```env
 NODE_ENV=production
@@ -16,15 +14,21 @@ CORS_ORIGINS=https://your-frontend-domain.com
 JWT_SECRET=replace-with-a-long-random-secret
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=replace-with-service-role-key
-PAYFAST_MODE=production
-PAYFAST_NOTIFY_URL=https://your-backend-domain.com/api/payments/notify
+
+PAYPAL_CLIENT_ID=your-live-client-id
+PAYPAL_CLIENT_SECRET=your-live-client-secret
+PAYPAL_MODE=live
+PAYPAL_RETURN_URL=https://your-frontend-domain.com/success
+PAYPAL_CANCEL_URL=https://your-frontend-domain.com/shop?cancelled=1
+PAYPAL_CURRENCY=USD
+
 RESEND_API_KEY=re_xxxxxxxxxxxxxxxxx
 EMAIL_FROM=Bakone Trades <support@your-domain.com>
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=replace-with-admin-password
 ```
 
 `CORS_ORIGINS` can contain multiple domains separated by commas.
-
-Email is sent with Resend over HTTPS instead of Gmail SMTP. This is more reliable on Render because production hosts may block or slow outbound SMTP ports, causing Gmail/Nodemailer connection timeouts.
 
 ## Commands
 
@@ -38,16 +42,7 @@ npm start
 
 Run `SUPABASE_SCHEMA.sql` in Supabase SQL Editor before production traffic.
 
-If you use CLI migration:
-
-```bash
-npm run migrate
-npm run seed
-```
-
 ## Health Check
-
-After deployment:
 
 ```text
 GET https://your-backend-domain.com/api/health
@@ -55,6 +50,6 @@ GET https://your-backend-domain.com/api/health
 
 The response should report `status: ok` and `database.status: ok`.
 
-## PayFast
+## PayPal
 
-For real ITN payment notifications, `PAYFAST_NOTIFY_URL` must be public HTTPS. Localhost will not work for PayFast server callbacks.
+For local development, `PAYPAL_MODE=mock` runs checkout without external PayPal credentials. For live checkout, use live PayPal REST API credentials and public HTTPS frontend return/cancel URLs. Use `PAYPAL_MODE=sandbox` only with sandbox credentials.
