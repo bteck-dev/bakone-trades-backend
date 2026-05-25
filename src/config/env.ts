@@ -7,6 +7,8 @@ const parseOrigins = (value?: string): string[] => {
 };
 
 const isProduction = process.env.NODE_ENV === "production";
+const payfastMode = (process.env.PAYFAST_MODE || "sandbox").toLowerCase();
+const isPayfastProduction = payfastMode === "production" || payfastMode === "live";
 const requiredProductionEnv = [
   "JWT_SECRET",
   "SUPABASE_URL",
@@ -48,9 +50,9 @@ export const config = {
     merchantId: process.env.PAYFAST_MERCHANT_ID || "",
     merchantKey: process.env.PAYFAST_MERCHANT_KEY || "",
     passphrase: process.env.PAYFAST_PASSPHRASE || "",
-    mode: process.env.PAYFAST_MODE || "sandbox",
+    mode: isPayfastProduction ? "production" : "sandbox",
     url:
-      process.env.PAYFAST_MODE === "production"
+      isPayfastProduction
         ? "https://www.payfast.co.za/eng/process"
         : "https://sandbox.payfast.co.za/eng/process",
     returnUrl: process.env.PAYFAST_RETURN_URL || "",

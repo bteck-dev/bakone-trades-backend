@@ -1,4 +1,5 @@
 import supabase from "../../config/supabase";
+import { config } from "../../config/env";
 import { HealthStatus, ServiceStatus } from "./health.model";
 
 export class HealthService {
@@ -38,7 +39,7 @@ export class HealthService {
   private async checkPayfast(): Promise<ServiceStatus> {
     const start = Date.now();
     try {
-      const isSandbox = process.env.PAYFAST_MODE === "sandbox";
+      const isSandbox = config.payfast.mode === "sandbox";
       const url = isSandbox
         ? "https://sandbox.payfast.co.za"
         : "https://www.payfast.co.za";
