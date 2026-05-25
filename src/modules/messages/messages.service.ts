@@ -1,4 +1,3 @@
-import nodemailer from "nodemailer";
 import { supabase } from "../../config/supabase";
 import { config } from "../../config/env";
 import logger from "../../config/logger";
@@ -6,11 +5,7 @@ import { AUDIT_ACTIONS, DELIVERY_METHOD } from "../../constants";
 import { auditService } from "../audit";
 import { ordersService } from "../orders";
 import { ConversationThread, MessageLog, PrepareWhatsAppDto, SendEmailDto, SendWhatsAppDto } from "./messages.model";
-
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: { user: config.gmail.user, pass: config.gmail.appPassword },
-});
+import { sendEmail as sendResendEmail } from "../../utils/sendEmail";
 
 const stripHtml = (html: string): string => html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 
@@ -195,45 +190,46 @@ export class MessagesService {
         order_id: dto.order_id || null,
         thread_id: thread.id,
         subject: dto.subject,
-        gmail_user: config.gmail.user || "(missing)",
-        has_gmail_app_password: Boolean(config.gmail.appPassword),
+        provider: "resend",
+        email_from: config.email.from || "(missing)",
+        has_resend_api_key: Boolean(config.email.resendApiKey),
       });
 
-      await transporter.verify();
-
-      const info = await transporter.sendMail({
-        from: `"Bakone Trades" <${config.gmail.user}>`,
+      const info = await sendResendEmail({
         to: dto.to,
         subject: dto.subject,
-        text,
         html: dto.html,
+        text,
+        replyTo: dto.replyTo,
       });
 
       logger.info("[Email] Email sent", {
         to: dto.to,
         order_id: dto.order_id || null,
         thread_id: thread.id,
-        messageId: info.messageId,
-        accepted: info.accepted,
-        rejected: info.rejected,
-        response: info.response,
+        provider: "resend",
+        messageId: info.data?.id,
+        error: info.error || null,
       });
+
+      if (info.error) {
+        throw new Error(info.error.message || "Resend email failed");
+      }
 
       const log = await this.createLog({
         thread_id: thread.id,
         order_id: dto.order_id || null,
         channel: "email",
         recipient: dto.to,
-        sender: config.gmail.user,
+        sender: config.email.from,
         subject: dto.subject,
         body_text: text,
         body_html: dto.html,
         status: "sent",
-        provider_message_id: info.messageId,
+        provider_message_id: info.data?.id || null,
         provider_response: {
-          accepted: info.accepted,
-          rejected: info.rejected,
-          response: info.response,
+          provider: "resend",
+          data: info.data,
         },
         sent_by: sentBy || null,
         sent_at: new Date().toISOString(),
@@ -254,8 +250,9 @@ export class MessagesService {
         order_id: dto.order_id || null,
         thread_id: thread.id,
         subject: dto.subject,
-        gmail_user: config.gmail.user || "(missing)",
-        has_gmail_app_password: Boolean(config.gmail.appPassword),
+        provider: "resend",
+        email_from: config.email.from || "(missing)",
+        has_resend_api_key: Boolean(config.email.resendApiKey),
         error: details,
       });
 
@@ -264,7 +261,7 @@ export class MessagesService {
         order_id: dto.order_id || null,
         channel: "email",
         recipient: dto.to,
-        sender: config.gmail.user,
+        sender: config.email.from,
         subject: dto.subject,
         body_text: text,
         body_html: dto.html,

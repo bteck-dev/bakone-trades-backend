@@ -14,8 +14,8 @@ const requiredProductionEnv = [
   "PAYFAST_MERCHANT_ID",
   "PAYFAST_MERCHANT_KEY",
   "PAYFAST_NOTIFY_URL",
-  "GMAIL_USER",
-  "GMAIL_APP_PASSWORD",
+  "RESEND_API_KEY",
+  "EMAIL_FROM",
   "ADMIN_EMAIL",
   "ADMIN_PASSWORD",
 ];
@@ -58,9 +58,9 @@ export const config = {
     notifyUrl: process.env.PAYFAST_NOTIFY_URL || "",
     usdToZarRate: Number(process.env.PAYFAST_USD_TO_ZAR_RATE || "18.50"),
   },
-  gmail: {
-    user: process.env.GMAIL_USER || "",
-    appPassword: process.env.GMAIL_APP_PASSWORD || "",
+  email: {
+    from: process.env.EMAIL_FROM || "",
+    resendApiKey: process.env.RESEND_API_KEY || "",
   },
   robotrader: {
     appDownloadUrl:

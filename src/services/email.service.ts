@@ -22,7 +22,7 @@ const emailShell = (title: string, content: string): string => `
         ${content}
         <div style="margin-top:30px;padding-top:18px;border-top:1px solid #e5e7eb;color:#6b7280;font-size:13px;line-height:1.6">
           <p style="margin:0">Need help? Reply to this email or contact Bakone Trades support.</p>
-          <p style="margin:6px 0 0"><a href="mailto:${config.gmail.user}" style="color:#16a34a">${config.gmail.user}</a></p>
+          <p style="margin:6px 0 0"><a href="mailto:${config.admin.email}" style="color:#16a34a">${config.admin.email}</a></p>
         </div>
       </div>
     </div>
@@ -46,11 +46,18 @@ const robotraderSetupStepsHtml = (): string => `
   </ol>
 `;
 
+const sendEmailOrThrow = async (input: Parameters<typeof messagesService.sendEmail>[0]): Promise<void> => {
+  const log = await messagesService.sendEmail(input);
+  if (log.status !== "sent") {
+    throw new Error(log.error_message || "Email failed");
+  }
+};
+
 export class EmailService {
   async sendAdminNewOrderAlert(order: Order): Promise<void> {
-    await messagesService.sendEmail({
+    await sendEmailOrThrow({
       order_id: order.order_id,
-      to: config.gmail.user,
+      to: config.admin.email,
       subject: `NEW ORDER - ${order.product_name} - Action Required`,
       html: emailShell("New Paid Order - Deliver License Key", `
         <h2>New Paid Order - Deliver License Key</h2>
@@ -74,7 +81,7 @@ export class EmailService {
   }
 
   async sendPaymentConfirmation(order: Order): Promise<void> {
-    await messagesService.sendEmail({
+    await sendEmailOrThrow({
       order_id: order.order_id,
       to: order.customer_email,
       subject: `Payment Confirmed - ${order.product_name} - Bakone Trades`,
@@ -97,9 +104,10 @@ export class EmailService {
   }
 
   async sendContactMessage(input: { name: string; email: string; message: string }): Promise<void> {
-    await messagesService.sendEmail({
-      to: config.admin.email || config.gmail.user,
+    await sendEmailOrThrow({
+      to: config.admin.email,
       subject: `Website Contact - ${input.name}`,
+      replyTo: input.email,
       html: emailShell("New Website Contact Message", `
         <table style="border-collapse:collapse;width:100%">
           <tr>

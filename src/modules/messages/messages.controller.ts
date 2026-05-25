@@ -39,13 +39,13 @@ export class MessagesController {
   async sendEmail(req: Request, res: Response): Promise<void> {
     try {
       const admin = (req as any).admin;
-      const { thread_id, order_id, to, subject, html, text } = req.body;
+      const { thread_id, order_id, to, subject, html, text, replyTo } = req.body;
       if (!to || !subject || !html) {
         sendError(res, "to, subject, and html are required", { statusCode: 400 });
         return;
       }
 
-      const message = await messagesService.sendEmail({ thread_id, order_id, to, subject, html, text }, admin?.id);
+      const message = await messagesService.sendEmail({ thread_id, order_id, to, subject, html, text, replyTo }, admin?.id);
       if (message.status !== "sent") {
         logger.error("[Email] API returning failure", {
           to,
@@ -67,6 +67,12 @@ export class MessagesController {
 
   async sendContactMessage(req: Request, res: Response): Promise<void> {
     try {
+      logger.info("[Contact] Contact message request received", {
+        has_name: Boolean(req.body.name),
+        has_email: Boolean(req.body.email),
+        message_length: String(req.body.message || "").length,
+      });
+
       const name = String(req.body.name || "").trim();
       const email = String(req.body.email || "").trim();
       const message = String(req.body.message || "").trim();

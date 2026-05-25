@@ -44,6 +44,7 @@ export interface SendEmailDto {
   subject: string;
   html: string;
   text?: string;
+  replyTo?: string;
 }
 
 export interface PrepareWhatsAppDto {

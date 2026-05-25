@@ -246,7 +246,7 @@ curl "http://localhost:5000/api/licenses/stock" \
 
 ---
 
-## Gmail App Password Setup
+## Resend Email Setup
 1. Google Account → Security → 2-Step Verification (enable)
 2. Security → App Passwords → Select app: Mail → Generate
-3. Copy the 16-character password → paste as `GMAIL_APP_PASSWORD` in `.env`
+3. Production email is sent through Resend. Set `RESEND_API_KEY` and `EMAIL_FROM` in `.env`.

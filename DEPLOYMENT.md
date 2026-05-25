@@ -18,11 +18,13 @@ SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=replace-with-service-role-key
 PAYFAST_MODE=production
 PAYFAST_NOTIFY_URL=https://your-backend-domain.com/api/payments/notify
-GMAIL_USER=bakonetrades@gmail.com
-GMAIL_APP_PASSWORD=remove-spaces-from-google-app-password
+RESEND_API_KEY=re_xxxxxxxxxxxxxxxxx
+EMAIL_FROM=Bakone Trades <support@your-domain.com>
 ```
 
 `CORS_ORIGINS` can contain multiple domains separated by commas.
+
+Email is sent with Resend over HTTPS instead of Gmail SMTP. This is more reliable on Render because production hosts may block or slow outbound SMTP ports, causing Gmail/Nodemailer connection timeouts.
 
 ## Commands
 

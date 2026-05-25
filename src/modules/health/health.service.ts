@@ -53,10 +53,10 @@ export class HealthService {
   }
 
   private checkEmail(): ServiceStatus {
-    const configured = !!(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD);
+    const configured = !!(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
     return {
       status: configured ? "ok" : "down",
-      message: configured ? undefined : "Gmail credentials not configured",
+      message: configured ? undefined : "Resend email credentials not configured",
     };
   }
 }
