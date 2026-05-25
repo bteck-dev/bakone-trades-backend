@@ -204,7 +204,6 @@ export class MessagesService {
       const info = await transporter.sendMail({
         from: `"Bakone Trades" <${config.gmail.user}>`,
         to: dto.to,
-        bcc: config.gmail.user || undefined,
         subject: dto.subject,
         text,
         html: dto.html,

@@ -62,6 +62,11 @@ export const config = {
     user: process.env.GMAIL_USER || "",
     appPassword: process.env.GMAIL_APP_PASSWORD || "",
   },
+  robotrader: {
+    appDownloadUrl:
+      process.env.ROBOTRADER_APP_DOWNLOAD_URL ||
+      "https://robotrader.take-profit-signals.co.za/info/downloads/RoboTrader5.apk",
+  },
   whatsapp: {
     accessToken: process.env.WHATSAPP_ACCESS_TOKEN || "",
     phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID || "",

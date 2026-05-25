@@ -2,6 +2,9 @@ import { Request, Response } from "express";
 import { sendError, sendSuccess } from "../../utils/apiResponse";
 import logger from "../../config/logger";
 import { messagesService } from "./messages.service";
+import { emailService } from "../../services/email.service";
+
+const isValidEmail = (email: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
 export class MessagesController {
   async getThreads(req: Request, res: Response): Promise<void> {
@@ -59,6 +62,37 @@ export class MessagesController {
       });
     } catch (err) {
       sendError(res, err instanceof Error ? err.message : "Failed to send email");
+    }
+  }
+
+  async sendContactMessage(req: Request, res: Response): Promise<void> {
+    try {
+      const name = String(req.body.name || "").trim();
+      const email = String(req.body.email || "").trim();
+      const message = String(req.body.message || "").trim();
+
+      if (!name || !email || !message) {
+        sendError(res, "Name, email, and message are required", { statusCode: 400 });
+        return;
+      }
+
+      if (name.length > 100 || email.length > 255 || message.length > 2000) {
+        sendError(res, "Your message is too long. Please shorten it and try again.", { statusCode: 400 });
+        return;
+      }
+
+      if (!isValidEmail(email)) {
+        sendError(res, "Please enter a valid email address", { statusCode: 400 });
+        return;
+      }
+
+      await emailService.sendContactMessage({ name, email, message });
+      sendSuccess(res, { sent: true }, { message: "Message sent" });
+    } catch (err) {
+      logger.error("[Contact] Failed to send contact message", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      sendError(res, "Could not send your message. Please try again or email us directly.");
     }
   }
 
