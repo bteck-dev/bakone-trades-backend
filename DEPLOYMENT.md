@@ -21,6 +21,7 @@ PAYPAL_MODE=live
 PAYPAL_RETURN_URL=https://your-frontend-domain.com/success
 PAYPAL_CANCEL_URL=https://your-frontend-domain.com/shop?cancelled=1
 PAYPAL_CURRENCY=USD
+PAYPAL_MERCHANT_ID=your-paypal-merchant-id
 
 RESEND_API_KEY=re_xxxxxxxxxxxxxxxxx
 EMAIL_FROM=Bakone Trades <support@your-domain.com>

@@ -12,6 +12,8 @@ export interface Order {
   currency: string;
   payment_status: OrderStatus;
   payfast_payment_id?: string;
+  payment_provider?: string;
+  payment_method?: string;
   // Manual delivery tracking
   key_status: KeyStatus;
   delivery_method?: DeliveryMethod;
@@ -29,6 +31,7 @@ export interface CreateOrderDto {
   customer_email: string;
   customer_phone?: string;
   product_id: string;
+  payment_method?: string;
 }
 
 export interface MarkDeliveredDto {

@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import crypto from "crypto";
 import { paymentsService } from "./payments.service";
 import { ordersService } from "../orders";
+import { productsService } from "../products";
 import { auditService } from "../audit";
 import { AUDIT_ACTIONS } from "../../constants";
 import { emailService } from "../../services/email.service";
@@ -41,11 +42,18 @@ export class PaymentsController {
     return `${req.protocol}://${req.get("host")}`;
   }
 
-  private async createCheckout(input: CheckoutInput, req: Request) {
+  private async createHostedLinkCheckout(input: CheckoutInput, req: Request) {
     const { customer_name, customer_email, customer_phone, product_id } = input;
 
     if (!customer_name || !customer_email || !product_id) {
       throw new Error("customer_name, customer_email, and product_id are required");
+    }
+
+    const product = await productsService.getById(product_id);
+    const paymentLink = product.payment_link?.trim();
+
+    if (!paymentLink) {
+      throw new Error("No payment link is configured for this product");
     }
 
     const order = await ordersService.createPendingOrder({
@@ -53,58 +61,47 @@ export class PaymentsController {
       customer_email,
       customer_phone,
       product_id,
-    });
-
-    const returnUrl = appendQuery(`${this.getBaseUrl(req)}/api/payments/return/${encodeURIComponent(order.order_id)}`, {
-      verify: this.createReturnToken(order.order_id, "return"),
-    });
-    const cancelUrl = appendQuery(`${this.getBaseUrl(req)}/api/payments/cancel/${encodeURIComponent(order.order_id)}`, {
-      verify: this.createReturnToken(order.order_id, "cancel"),
-    });
-
-    const checkout = await paymentsService.createCheckout({
-      orderId: order.order_id,
-      productName: order.product_name,
-      amount: Number(order.amount),
-      currency: order.currency || config.paypal.currency,
-      returnUrl,
-      cancelUrl,
+      payment_method: "paypal",
     });
 
     await auditService.log({
       action: AUDIT_ACTIONS.ORDER_CREATED,
       entity_type: "order",
       entity_id: order.order_id,
-      description: `PayPal checkout initiated for ${customer_email} - ${order.product_name}`,
-      metadata: { paypal_order_id: checkout.paypalOrderId },
+      description: `Hosted PayPal checkout started for ${customer_email} - ${order.product_name}`,
+      metadata: {
+        payment_provider: "paypal",
+        payment_method: "hosted_link",
+        payment_link: paymentLink,
+      },
       ip_address: req.ip,
     });
 
-    return { order, checkout };
+    return { order, paymentLink };
   }
 
   async initiateCheckout(req: Request, res: Response): Promise<void> {
     try {
-      const { order, checkout } = await this.createCheckout(req.body, req);
+      const { order, paymentLink } = await this.createHostedLinkCheckout(req.body, req);
       sendSuccess(res, {
         orderId: order.order_id,
-        paypal: checkout,
-        approvalUrl: checkout.approvalUrl,
+        paymentLink,
+        approvalUrl: paymentLink,
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Checkout failed";
-      const statusCode = message.includes("required") ? 400 : 500;
+      const statusCode = message.includes("required") || message.includes("No payment link") ? 400 : 500;
       sendError(res, message, { statusCode });
     }
   }
 
   async redirectToPayPal(req: Request, res: Response): Promise<void> {
     try {
-      const { checkout } = await this.createCheckout(req.query as CheckoutInput, req);
-      res.redirect(302, checkout.approvalUrl);
+      const { paymentLink } = await this.createHostedLinkCheckout(req.query as CheckoutInput, req);
+      res.redirect(302, paymentLink);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Checkout failed";
-      const statusCode = message.includes("required") ? 400 : 500;
+      const statusCode = message.includes("required") || message.includes("No payment link") ? 400 : 500;
       sendError(res, message, { statusCode });
     }
   }
