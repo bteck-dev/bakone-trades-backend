@@ -7,6 +7,7 @@ export interface Product {
   features: string[];
   price: number;
   image_url?: string;
+  payment_link?: string;
   is_visible: boolean;
   created_at: string;
   updated_at: string;
@@ -19,6 +20,7 @@ export interface UpdateProductDto {
   features?: string[];
   price?: number;
   image_url?: string;
+  payment_link?: string;
   is_visible?: boolean;
 }
 
@@ -30,5 +32,6 @@ export interface CreateProductDto {
   features?: string[];
   price: number;
   image_url?: string;
+  payment_link?: string;
   is_visible?: boolean;
 }

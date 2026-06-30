@@ -74,7 +74,10 @@ export class PaymentsService {
       },
     });
 
-    const body = await response.json().catch(() => ({})) as T & { message?: string; details?: Array<{ issue?: string; description?: string }> };
+    const body = await response.json().catch(() => ({})) as T & {
+      message?: string;
+      details?: Array<{ issue?: string; description?: string }>;
+    };
 
     if (!response.ok) {
       const detail = body.details?.[0]?.description || body.details?.[0]?.issue || body.message;

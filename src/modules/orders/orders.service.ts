@@ -2,7 +2,6 @@ import { v4 as uuidv4 } from "uuid";
 import { supabase } from "../../config/supabase";
 import { Order, CreateOrderDto, MarkDeliveredDto } from "./orders.model";
 import { ORDER_STATUS, KEY_STATUS } from "../../constants";
-import { config } from "../../config/env";
 
 export class OrdersService {
   // Build WhatsApp link so admin can message customer with one click
@@ -34,6 +33,8 @@ export class OrdersService {
       amount: product.price,
       currency: "USD",
       payment_status: ORDER_STATUS.PENDING,
+      payment_provider: "paypal",
+      payment_method: dto.payment_method || "paypal",
       key_status: KEY_STATUS.PENDING_DELIVERY,
       whatsapp_link: whatsappLink || null,
     }).select().single();

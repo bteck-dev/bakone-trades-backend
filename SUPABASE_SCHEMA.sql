@@ -1,12 +1,12 @@
 -- ============================================================
--- BAKONE TRADES — SUPABASE SCHEMA
--- Run this in Supabase → SQL Editor
+-- BAKONE TRADES â€” SUPABASE SCHEMA
+-- Run this in Supabase â†’ SQL Editor
 -- ============================================================
 
 -- Enable UUID extension
 create extension if not exists "uuid-ossp";
 
--- ── ADMINS ──────────────────────────────────────────────────
+-- â”€â”€ ADMINS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 create table if not exists admins (
   id uuid primary key default uuid_generate_v4(),
   email text not null unique,
@@ -14,7 +14,7 @@ create table if not exists admins (
   created_at timestamptz default now()
 );
 
--- ── PRODUCTS ────────────────────────────────────────────────
+-- â”€â”€ PRODUCTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 create table if not exists products (
   id uuid primary key default uuid_generate_v4(),
   name text not null,
@@ -24,12 +24,13 @@ create table if not exists products (
   features jsonb default '[]',
   price numeric(10,2) not null,
   image_url text,
+  payment_link text,
   is_visible boolean default true,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
 
--- ── ORDERS ──────────────────────────────────────────────────
+-- â”€â”€ ORDERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 -- key_status tracks manual delivery (admin sends key via WhatsApp/Email)
 create table if not exists orders (
   id uuid primary key default uuid_generate_v4(),
@@ -43,6 +44,8 @@ create table if not exists orders (
   currency text default 'ZAR',
   payment_status text default 'pending' check (payment_status in ('pending','paid','failed','cancelled')),
   payfast_payment_id text,
+  payment_provider text default 'paypal',
+  payment_method text default 'paypal' check (payment_method in ('paypal','card')),
   -- Manual delivery tracking
   key_status text default 'pending_delivery' check (key_status in ('pending_delivery','delivered','cancelled')),
   delivery_method text check (delivery_method in ('whatsapp','email','both')),
@@ -54,8 +57,8 @@ create table if not exists orders (
   updated_at timestamptz default now()
 );
 
--- ── LICENSE NOTES ────────────────────────────────────────────
--- Admin notes about key delivery (no keys stored here — RoboTrader handles that)
+-- â”€â”€ LICENSE NOTES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+-- Admin notes about key delivery (no keys stored here â€” RoboTrader handles that)
 create table if not exists license_notes (
   id uuid primary key default uuid_generate_v4(),
   product_id uuid references products(id),
@@ -65,7 +68,7 @@ create table if not exists license_notes (
   created_at timestamptz default now()
 );
 
--- ── AUDIT LOGS ───────────────────────────────────────────────
+-- â”€â”€ AUDIT LOGS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 create table if not exists audit_logs (
   id uuid primary key default uuid_generate_v4(),
   action text not null,
@@ -79,7 +82,7 @@ create table if not exists audit_logs (
   created_at timestamptz default now()
 );
 
--- ── MESSAGE LOGS ─────────────────────────────────────────────────
+-- â”€â”€ MESSAGE LOGS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 create table if not exists conversation_threads (
   id uuid primary key default uuid_generate_v4(),
   order_id text references orders(order_id),
@@ -120,24 +123,32 @@ alter table message_logs add column if not exists sender text;
 alter table message_logs add column if not exists provider_status text;
 alter table message_logs add column if not exists provider_timestamp timestamptz;
 
--- ── SEED PRODUCTS ────────────────────────────────────────────
-insert into products (name, version, slug, description, features, price, is_visible)
+alter table products add column if not exists payment_link text;
+
+update products set payment_link = 'https://www.paypal.com/ncp/payment/BN6GN4T6PX5LJ' where slug = 'fx-killer-pv4-pro';
+update products set payment_link = 'https://www.paypal.com/ncp/payment/775S47TLGNZHA' where slug = 'poverty-scalper-ea';
+
+alter table orders add column if not exists payment_provider text default 'paypal';
+alter table orders add column if not exists payment_method text default 'paypal' check (payment_method in ('paypal','card'));
+
+-- â”€â”€ SEED PRODUCTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+insert into products (name, version, slug, description, features, price, payment_link, is_visible)
 values
 (
   'FX Killer PV4.0 Pro', '4.0 Pro', 'fx-killer-pv4-pro',
   'Analyzes real-time market data using price action, spread, volatility, RSI, Bollinger Bands, and Moving Averages to identify low-risk, high-probability trade entries and exits automatically.',
   '["Real-time technical analysis","Smart entry & exit detection","Works on 20+ markets","RSI, Bollinger Bands & Moving Averages"]',
-  30.00, true
+  30.00, 'https://www.paypal.com/ncp/payment/BN6GN4T6PX5LJ', true
 ),
 (
   'Poverty Scalper EA', '2.0+', 'poverty-scalper-ea',
   'An automated Expert Advisor designed to identify high-probability market opportunities using trend analysis, price action, and smart risk management.',
   '["Trend analysis engine","Price action recognition","Built-in risk management","High-probability setups only"]',
-  21.00, true
+  21.00, 'https://www.paypal.com/ncp/payment/775S47TLGNZHA', true
 )
 on conflict (slug) do nothing;
 
--- ── INDEXES ──────────────────────────────────────────────────
+-- â”€â”€ INDEXES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 create index if not exists idx_orders_payment_status on orders(payment_status);
 create index if not exists idx_orders_key_status on orders(key_status);
 create index if not exists idx_orders_customer_email on orders(customer_email);
@@ -147,7 +158,7 @@ create index if not exists idx_conversation_threads_order on conversation_thread
 create index if not exists idx_conversation_threads_last on conversation_threads(last_message_at desc);
 create index if not exists idx_message_logs_thread on message_logs(thread_id);
 
--- ── ROW LEVEL SECURITY (disable for service role) ────────────
+-- â”€â”€ ROW LEVEL SECURITY (disable for service role) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 alter table admins enable row level security;
 alter table products enable row level security;
 alter table orders enable row level security;
@@ -160,3 +171,4 @@ alter table message_logs enable row level security;
 -- Public read for products only (frontend fetches products without auth)
 create policy "Public can view visible products" on products
   for select using (is_visible = true);
+

@@ -5,7 +5,7 @@ export class ProductsService {
   async getAll(): Promise<Product[]> {
     const { data, error } = await supabase
       .from("products")
-      .select("id,name,version,slug,description,features,price,image_url,is_visible")
+      .select("*")
       .eq("is_visible", true);
     if (error) throw new Error(error.message);
     return data as Product[];
@@ -18,7 +18,7 @@ export class ProductsService {
   async getBySlug(slug: string): Promise<Product> {
     const { data, error } = await supabase
       .from("products")
-      .select("id,name,version,slug,description,features,price,image_url")
+      .select("*")
       .eq("slug", slug).eq("is_visible", true).single();
     if (error || !data) throw new Error("Product not found");
     return data as Product;

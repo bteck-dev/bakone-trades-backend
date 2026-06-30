@@ -3,6 +3,7 @@ import { ordersService } from "./orders.service";
 import { auditService } from "../audit";
 import { AUDIT_ACTIONS } from "../../constants";
 import { sendError, sendSuccess } from "../../utils/apiResponse";
+import { emailService } from "../../services/email.service";
 
 export class OrdersController {
   async getAll(req: Request, res: Response): Promise<void> {
@@ -33,6 +34,42 @@ export class OrdersController {
       sendSuccess(res, { orders: await ordersService.getPendingDeliveries() });
     } catch (err: unknown) {
       sendError(res, "Failed to fetch pending deliveries");
+    }
+  }
+
+  async confirmPayment(req: Request, res: Response): Promise<void> {
+    try {
+      const admin = (req as any).admin;
+      const existingOrder = await ordersService.getByOrderId(req.params.orderId);
+
+      if (existingOrder.payment_status === "paid") {
+        sendSuccess(res, { order: existingOrder }, { message: "Payment already confirmed" });
+        return;
+      }
+
+      const paymentReference = req.body?.payment_reference || `PAYPAL-HOSTED-${existingOrder.order_id}`;
+      const order = await ordersService.markAsPaid(req.params.orderId, paymentReference);
+
+      await auditService.log({
+        action: AUDIT_ACTIONS.ORDER_PAID,
+        admin_id: admin.id,
+        entity_type: "order",
+        entity_id: order.order_id,
+        description: `Payment manually confirmed for order ${order.order_id}`,
+        metadata: {
+          payment_reference: paymentReference,
+          payment_provider: "paypal",
+          confirmation_source: "admin_hosted_link",
+        },
+        ip_address: req.ip,
+      });
+
+      await emailService.sendPaymentConfirmation(order);
+      await emailService.sendAdminNewOrderAlert(order);
+
+      sendSuccess(res, { order }, { message: "Payment confirmed and confirmation email sent" });
+    } catch (err: unknown) {
+      sendError(res, err instanceof Error ? err.message : "Failed to confirm payment", { statusCode: 400 });
     }
   }
 

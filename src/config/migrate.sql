@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS products (
   features JSONB DEFAULT '[]',
   price NUMERIC(10, 2) NOT NULL,
   image_url TEXT,
+  payment_link TEXT,
   is_visible BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -39,6 +40,8 @@ CREATE TABLE IF NOT EXISTS orders (
   currency TEXT DEFAULT 'ZAR',
   payment_status TEXT DEFAULT 'pending' CHECK (payment_status IN ('pending', 'paid', 'failed', 'cancelled')),
   payfast_payment_id TEXT,
+  payment_provider TEXT DEFAULT 'paypal',
+  payment_method TEXT DEFAULT 'paypal' CHECK (payment_method IN ('paypal','card')),
   delivery_method TEXT DEFAULT 'email' CHECK (delivery_method IN ('email', 'whatsapp', 'both')),
   license_key TEXT,
   license_delivered BOOLEAN DEFAULT FALSE,
@@ -120,7 +123,15 @@ CREATE TRIGGER orders_updated_at
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- ─── SEED PRODUCTS ──────────────────────────────────────────
-INSERT INTO products (name, version, slug, description, features, price, is_visible)
+alter table products add column if not exists payment_link text;
+
+update products set payment_link = 'https://www.paypal.com/ncp/payment/BN6GN4T6PX5LJ' where slug = 'fx-killer-pv4-pro';
+update products set payment_link = 'https://www.paypal.com/ncp/payment/775S47TLGNZHA' where slug = 'poverty-scalper-ea';
+
+alter table orders add column if not exists payment_provider text default 'paypal';
+alter table orders add column if not exists payment_method text default 'paypal' check (payment_method in ('paypal','card'));
+
+INSERT INTO products (name, version, slug, description, features, price, payment_link, is_visible)
 VALUES
 (
   'FX Killer PV4.0 Pro',
@@ -129,6 +140,7 @@ VALUES
   'Analyzes real-time market data using price action, spread, volatility, RSI, Bollinger Bands, and Moving Averages to identify low-risk, high-probability trade entries and exits automatically.',
   '["Real-time technical analysis", "Smart entry & exit detection", "Works on 20+ markets", "RSI, Bollinger Bands & Moving Averages"]',
   30.00,
+  'https://www.paypal.com/ncp/payment/BN6GN4T6PX5LJ',
   TRUE
 ),
 (
@@ -138,6 +150,7 @@ VALUES
   'An automated Expert Advisor designed to identify high-probability market opportunities using trend analysis, price action, and smart risk management. Also known as Poverty Killer EA.',
   '["Trend analysis engine", "Price action recognition", "Built-in risk management", "High-probability setups only"]',
   21.00,
+  'https://www.paypal.com/ncp/payment/775S47TLGNZHA',
   TRUE
 )
 ON CONFLICT (slug) DO NOTHING;
