@@ -2,6 +2,8 @@ name: Database migrations
 
 on:
   push:
+    branches:
+      - main
     paths:
       - "migrations/**"
       - "scripts/migrate.js"
@@ -9,23 +11,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  migrate-local:
-    if: github.ref != 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment: local
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run migrate
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-
   migrate-production:
-    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
     steps:

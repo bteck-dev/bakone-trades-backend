@@ -35,7 +35,7 @@ npm run migrate
 
 This needs `SUPABASE_DB_URL` and the PostgreSQL `psql` client. Applied files are recorded in `public.schema_migrations` and will not run twice.
 
-The GitHub Actions workflow applies migrations to the `local` GitHub environment for non-`main` pushes and the `production` environment for `main`. Create both environments and add a secret named `SUPABASE_DB_URL` to each.
+The GitHub Actions workflow applies migrations only after a push to `main`. Create a GitHub environment named `production` and add a secret named `SUPABASE_DB_URL` to it.
 
 For a brand-new database, run `SUPABASE_SCHEMA.sql` once before the versioned migrations.
 

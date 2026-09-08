@@ -19,11 +19,7 @@ IKHOKHA_ZAR_PER_USD=18.00
 
 ## Automatic migrations
 
-In GitHub repository settings, create environments named `local` and `production`. Add a separate `SUPABASE_DB_URL` secret to each environment:
-
-- Non-`main` pushes apply pending migrations to `local`.
-- Pushes to `main` apply pending migrations to `production`.
-- The workflow can also be run manually.
+In GitHub repository settings, create an environment named `production` and add its `SUPABASE_DB_URL` secret. Pushes to `main` apply pending migrations to production. The workflow can also be run manually.
 
 Use Supabase's direct or session-pooler PostgreSQL connection string. Transaction-pooler URLs may not support migration operations reliably.
 
