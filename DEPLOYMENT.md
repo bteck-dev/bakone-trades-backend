@@ -1,56 +1,38 @@
 # Bakone Trades Backend Deployment
 
-This backend is an Express API and should be deployed separately from the Vite frontend.
-
-## Required Environment
-
-Use your local `.env` values as the template for your hosting provider.
+Set every production variable shown in `.env.example` in the backend hosting provider. In particular, use the production URLs and real iKhokha credentials:
 
 ```env
-NODE_ENV=production
-PORT=5000
-FRONTEND_URL=https://your-frontend-domain.com
-CORS_ORIGINS=https://your-frontend-domain.com
-JWT_SECRET=replace-with-a-long-random-secret
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=replace-with-service-role-key
-
-PAYPAL_CLIENT_ID=your-live-client-id
-PAYPAL_CLIENT_SECRET=your-live-client-secret
-PAYPAL_MODE=live
-PAYPAL_RETURN_URL=https://your-frontend-domain.com/success
-PAYPAL_CANCEL_URL=https://your-frontend-domain.com/shop?cancelled=1
-PAYPAL_CURRENCY=USD
-PAYPAL_MERCHANT_ID=your-paypal-merchant-id
-
-RESEND_API_KEY=re_xxxxxxxxxxxxxxxxx
-EMAIL_FROM=Bakone Trades <support@your-domain.com>
-ADMIN_EMAIL=admin@example.com
-ADMIN_PASSWORD=replace-with-admin-password
+IKHOKHA_APP_ID=your-production-application-id
+IKHOKHA_APP_SECRET=your-production-application-secret
+IKHOKHA_MODE=live
+IKHOKHA_API_URL=https://api.ikhokha.com
+IKHOKHA_REQUESTER_URL=https://your-frontend-domain.com
+IKHOKHA_CALLBACK_URL=https://api.bakonetrades.com/api/payments/webhook
+IKHOKHA_SUCCESS_URL=https://your-frontend-domain.com/success
+IKHOKHA_FAILURE_URL=https://your-frontend-domain.com/shop?failed=1
+IKHOKHA_CANCEL_URL=https://your-frontend-domain.com/shop?cancelled=1
+IKHOKHA_ZAR_PER_USD=18.00
 ```
 
-`CORS_ORIGINS` can contain multiple domains separated by commas.
+`IKHOKHA_CALLBACK_URL` must be publicly reachable over HTTPS. Do not expose `IKHOKHA_APP_SECRET` or `SUPABASE_SERVICE_ROLE_KEY` in the frontend.
 
-## Commands
+## Automatic migrations
+
+In GitHub repository settings, create environments named `local` and `production`. Add a separate `SUPABASE_DB_URL` secret to each environment:
+
+- Non-`main` pushes apply pending migrations to `local`.
+- Pushes to `main` apply pending migrations to `production`.
+- The workflow can also be run manually.
+
+Use Supabase's direct or session-pooler PostgreSQL connection string. Transaction-pooler URLs may not support migration operations reliably.
+
+## Deploy commands
 
 ```bash
-npm install
+npm ci
 npm run build
 npm start
 ```
 
-## Database
-
-Run `SUPABASE_SCHEMA.sql` in Supabase SQL Editor before production traffic.
-
-## Health Check
-
-```text
-GET https://your-backend-domain.com/api/health
-```
-
-The response should report `status: ok` and `database.status: ok`.
-
-## PayPal
-
-For local development, `PAYPAL_MODE=mock` runs checkout without external PayPal credentials. For live checkout, use live PayPal REST API credentials and public HTTPS frontend return/cancel URLs. Use `PAYPAL_MODE=sandbox` only with sandbox credentials.
+After deployment, verify `GET https://your-backend-domain.com/api/health` and complete one low-value real checkout before opening sales.

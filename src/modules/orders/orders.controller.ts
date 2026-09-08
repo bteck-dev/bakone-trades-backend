@@ -47,7 +47,7 @@ export class OrdersController {
         return;
       }
 
-      const paymentReference = req.body?.payment_reference || `PAYPAL-HOSTED-${existingOrder.order_id}`;
+      const paymentReference = req.body?.payment_reference || `IKHOKHA-MANUAL-${existingOrder.order_id}`;
       const order = await ordersService.markAsPaid(req.params.orderId, paymentReference);
 
       await auditService.log({
@@ -58,7 +58,7 @@ export class OrdersController {
         description: `Payment manually confirmed for order ${order.order_id}`,
         metadata: {
           payment_reference: paymentReference,
-          payment_provider: "paypal",
+          payment_provider: "ikhokha",
           confirmation_source: "admin_hosted_link",
         },
         ip_address: req.ip,

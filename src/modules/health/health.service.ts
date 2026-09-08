@@ -5,11 +5,11 @@ import { HealthStatus, ServiceStatus } from "./health.model";
 export class HealthService {
   async getHealth(): Promise<HealthStatus> {
     const dbStatus = await this.checkDatabase();
-    const paypalStatus = await this.checkPayPal();
+    const ikhokhaStatus = await this.checkIkhokha();
     const emailStatus = this.checkEmail();
 
-    const allOk = [dbStatus, paypalStatus, emailStatus].every((s) => s.status === "ok");
-    const anyDown = [dbStatus, paypalStatus, emailStatus].some((s) => s.status === "down");
+    const allOk = [dbStatus, ikhokhaStatus, emailStatus].every((s) => s.status === "ok");
+    const anyDown = [dbStatus, ikhokhaStatus, emailStatus].some((s) => s.status === "down");
 
     return {
       status: allOk ? "ok" : anyDown ? "down" : "degraded",
@@ -20,7 +20,7 @@ export class HealthService {
       services: {
         database: dbStatus,
         email: emailStatus,
-        paypal: paypalStatus,
+        ikhokha: ikhokhaStatus,
       },
     };
   }
@@ -36,16 +36,16 @@ export class HealthService {
     }
   }
 
-  private async checkPayPal(): Promise<ServiceStatus> {
+  private async checkIkhokha(): Promise<ServiceStatus> {
     const start = Date.now();
     try {
-      const res = await fetch(config.paypal.apiUrl, { method: "HEAD", signal: AbortSignal.timeout(5000) });
+      const res = await fetch(config.ikhokha.apiUrl, { method: "HEAD", signal: AbortSignal.timeout(5000) });
       return {
         status: res.ok || res.status < 500 ? "ok" : "down",
         latency_ms: Date.now() - start,
       };
     } catch {
-      return { status: "down", message: "PayPal unreachable" };
+      return { status: "down", message: "iKhokha unreachable" };
     }
   }
 

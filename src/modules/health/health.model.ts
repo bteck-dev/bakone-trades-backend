@@ -8,7 +8,7 @@ export interface HealthStatus {
   services: {
     database: ServiceStatus;
     email: ServiceStatus;
-    paypal: ServiceStatus;
+    ikhokha: ServiceStatus;
   };
 }
 

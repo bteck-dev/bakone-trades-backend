@@ -44,8 +44,8 @@ create table if not exists orders (
   currency text default 'ZAR',
   payment_status text default 'pending' check (payment_status in ('pending','paid','failed','cancelled')),
   payfast_payment_id text,
-  payment_provider text default 'paypal',
-  payment_method text default 'paypal' check (payment_method in ('paypal','card')),
+  payment_provider text default 'ikhokha',
+  payment_method text default 'card' check (payment_method in ('card','eft','apple_pay','google_pay')),
   -- Manual delivery tracking
   key_status text default 'pending_delivery' check (key_status in ('pending_delivery','delivered','cancelled')),
   delivery_method text check (delivery_method in ('whatsapp','email','both')),
@@ -125,11 +125,14 @@ alter table message_logs add column if not exists provider_timestamp timestamptz
 
 alter table products add column if not exists payment_link text;
 
-update products set payment_link = 'https://www.paypal.com/ncp/payment/BN6GN4T6PX5LJ' where slug = 'fx-killer-pv4-pro';
-update products set payment_link = 'https://www.paypal.com/ncp/payment/775S47TLGNZHA' where slug = 'poverty-scalper-ea';
+update products set payment_link = null where slug in ('fx-killer-pv4-pro', 'poverty-scalper-ea');
 
-alter table orders add column if not exists payment_provider text default 'paypal';
-alter table orders add column if not exists payment_method text default 'paypal' check (payment_method in ('paypal','card'));
+alter table orders add column if not exists payment_provider text default 'ikhokha';
+alter table orders alter column payment_provider set default 'ikhokha';
+alter table orders drop constraint if exists orders_payment_method_check;
+alter table orders add column if not exists payment_method text default 'card';
+alter table orders alter column payment_method set default 'card';
+alter table orders add constraint orders_payment_method_check check (payment_method in ('card','eft','apple_pay','google_pay'));
 
 -- â”€â”€ SEED PRODUCTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 insert into products (name, version, slug, description, features, price, payment_link, is_visible)
@@ -138,13 +141,13 @@ values
   'FX Killer PV4.0 Pro', '4.0 Pro', 'fx-killer-pv4-pro',
   'Analyzes real-time market data using price action, spread, volatility, RSI, Bollinger Bands, and Moving Averages to identify low-risk, high-probability trade entries and exits automatically.',
   '["Real-time technical analysis","Smart entry & exit detection","Works on 20+ markets","RSI, Bollinger Bands & Moving Averages"]',
-  30.00, 'https://www.paypal.com/ncp/payment/BN6GN4T6PX5LJ', true
+  30.00, null, true
 ),
 (
   'Poverty Scalper EA', '2.0+', 'poverty-scalper-ea',
   'An automated Expert Advisor designed to identify high-probability market opportunities using trend analysis, price action, and smart risk management.',
   '["Trend analysis engine","Price action recognition","Built-in risk management","High-probability setups only"]',
-  21.00, 'https://www.paypal.com/ncp/payment/775S47TLGNZHA', true
+  21.00, null, true
 )
 on conflict (slug) do nothing;
 
@@ -171,4 +174,3 @@ alter table message_logs enable row level security;
 -- Public read for products only (frontend fetches products without auth)
 create policy "Public can view visible products" on products
   for select using (is_visible = true);
-
