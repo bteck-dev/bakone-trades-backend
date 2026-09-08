@@ -25,19 +25,9 @@ npm run dev
 
 The iKhokha callback URL must be a public HTTPS URL ending in `/api/payments/webhook`. Generate the Application ID and Application Secret in iKhokha Merchant Dashboard under **Integrations > Payment API**.
 
-## Database migrations
+## Database setup
 
-Run pending migrations locally with:
-
-```bash
-npm run migrate
-```
-
-This needs `SUPABASE_DB_URL` and the PostgreSQL `psql` client. Applied files are recorded in `public.schema_migrations` and will not run twice.
-
-The GitHub Actions workflow applies migrations only after a push to `main`. Create a GitHub environment named `production` and add a secret named `SUPABASE_DB_URL` to it.
-
-For a brand-new database, run `SUPABASE_SCHEMA.sql` once before the versioned migrations.
+For the existing production database, open Supabase SQL Editor and run `IKHOKHA_MIGRATION.sql` once. For a brand-new empty database, run `SUPABASE_SCHEMA.sql` instead. Database changes are not executed automatically during GitHub pushes.
 
 ## Main endpoints
 
