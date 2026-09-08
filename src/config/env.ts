@@ -67,10 +67,10 @@ export const config = {
     from: process.env.EMAIL_FROM || "",
     resendApiKey: process.env.RESEND_API_KEY || "",
   },
-  robotrader: {
+  botSync: {
     appDownloadUrl:
       process.env.ROBOTRADER_APP_DOWNLOAD_URL ||
-      "https://robotrader.take-profit-signals.co.za/info/downloads/RoboTrader5.apk",
+      "https://bot-sync.com/downloads/BotSync-Android.apk",
   },
   whatsapp: {
     accessToken: process.env.WHATSAPP_ACCESS_TOKEN || "",

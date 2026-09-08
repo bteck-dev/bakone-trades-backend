@@ -29,17 +29,17 @@ const emailShell = (title: string, content: string): string => `
   </div>
 `;
 
-const robotraderDownloadHtml = (): string => {
-  if (!config.robotrader.appDownloadUrl) {
-    return "Download the RoboTrader app using the link provided by Bakone Trades support.";
+const botSyncDownloadHtml = (): string => {
+  if (!config.botSync.appDownloadUrl) {
+    return "Download the BotSync app using the link provided by Bakone Trades support.";
   }
 
-  return `<a href="${config.robotrader.appDownloadUrl}" style="color:#16a34a;font-weight:bold">Download the RoboTrader app here</a>`;
+  return `<a href="${config.botSync.appDownloadUrl}" style="color:#16a34a;font-weight:bold">Download the BotSync app here</a>`;
 };
 
-const robotraderSetupStepsHtml = (): string => `
+const botSyncSetupStepsHtml = (): string => `
   <ol style="padding-left:20px;line-height:1.8;color:#374151">
-    <li><strong>Download the RoboTrader app.</strong><br/>Use this link on your Android phone: ${robotraderDownloadHtml()}.</li>
+    <li><strong>Download the BotSync app.</strong><br/>Use this link on your Android phone: ${botSyncDownloadHtml()}.</li>
     <li><strong>Add your license key.</strong><br/>Open the app and paste the license key exactly as it appears in your email.</li>
     <li><strong>Connect your trading server.</strong><br/>Sign in with the broker or trading server details that you normally use for trading.</li>
     <li><strong>Allow all symbols.</strong><br/>Give the app permission to see the markets available on your account so the robot can work correctly.</li>
@@ -95,9 +95,9 @@ export class EmailService {
           <p style="margin:8px 0 0;color:#166534;font-size:14px">Order reference: <strong>${escapeHtml(order.order_id)}</strong></p>
         </div>
         <h3 style="margin:24px 0 10px;color:#111827">What to do after you receive your license key</h3>
-        ${robotraderSetupStepsHtml()}
+        ${botSyncSetupStepsHtml()}
         <p style="margin:18px 0 0;color:#6b7280;font-size:14px;line-height:1.7">
-          RoboTrader is a separate app used to connect your license to your trading setup. Bakone Trades provides your paid license and support for getting started.
+          BotSync is a separate app used to connect your license to your trading setup. Bakone Trades provides your paid license and support for getting started.
         </p>
       `),
     });

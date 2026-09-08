@@ -58,7 +58,7 @@ create table if not exists orders (
 );
 
 -- â”€â”€ LICENSE NOTES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
--- Admin notes about key delivery (no keys stored here â€” RoboTrader handles that)
+-- Admin notes about key delivery (no keys stored here â€” BotSync handles that)
 create table if not exists license_notes (
   id uuid primary key default uuid_generate_v4(),
   product_id uuid references products(id),

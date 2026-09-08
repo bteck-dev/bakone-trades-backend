@@ -2,7 +2,7 @@ import { supabase } from "../../config/supabase";
 import { CreateLicenseNoteDto } from "./licenses.model";
 
 // NOTE: We do NOT store license keys in our DB.
-// Admin generates keys manually on RoboTrader then delivers via WhatsApp/Email.
+// Admin generates keys manually on BotSync then delivers via WhatsApp/Email.
 // This module tracks delivery notes and stock status per product.
 export class LicensesService {
   async getStockStatus() {
