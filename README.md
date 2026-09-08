@@ -23,7 +23,7 @@ npm test
 npm run dev
 ```
 
-The iKhokha callback URL must be a public HTTPS URL ending in `/api/payments/webhook`. Generate the Application ID and Application Secret in iKhokha Merchant Dashboard under **Integrations > Payment API**.
+The iKhokha callback defaults to `https://api.bakonetrades.com/api/payments/webhook`; `IKHOKHA_CALLBACK_URL` can override it. Generate the Application ID and Application Secret in iKhokha Merchant Dashboard under **Integrations > Payment API**.
 
 ## Database setup
 

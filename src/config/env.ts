@@ -18,8 +18,6 @@ const requiredProductionEnv = [
   "ADMIN_PASSWORD",
   "IKHOKHA_APP_ID",
   "IKHOKHA_APP_SECRET",
-  "IKHOKHA_REQUESTER_URL",
-  "IKHOKHA_CALLBACK_URL",
   "IKHOKHA_ZAR_PER_USD",
 ];
 
@@ -57,8 +55,8 @@ export const config = {
     appSecret: process.env.IKHOKHA_APP_SECRET || "",
     mode: ikhokhaMode,
     apiUrl: (process.env.IKHOKHA_API_URL || "https://api.ikhokha.com").replace(/\/$/, ""),
-    requesterUrl: process.env.IKHOKHA_REQUESTER_URL || process.env.FRONTEND_URL || "",
-    callbackUrl: process.env.IKHOKHA_CALLBACK_URL || "",
+    requesterUrl: process.env.IKHOKHA_REQUESTER_URL || process.env.FRONTEND_URL || "https://bakonetrades.com",
+    callbackUrl: process.env.IKHOKHA_CALLBACK_URL || "https://api.bakonetrades.com/api/payments/webhook",
     successUrl: process.env.IKHOKHA_SUCCESS_URL || `${process.env.FRONTEND_URL || "http://localhost:3000"}/success`,
     failureUrl: process.env.IKHOKHA_FAILURE_URL || `${process.env.FRONTEND_URL || "http://localhost:3000"}/shop?failed=1`,
     cancelUrl: process.env.IKHOKHA_CANCEL_URL || `${process.env.FRONTEND_URL || "http://localhost:3000"}/shop?cancelled=1`,
