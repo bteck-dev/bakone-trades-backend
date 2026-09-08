@@ -33,8 +33,8 @@ export class OrdersService {
       amount: product.price,
       currency: "USD",
       payment_status: ORDER_STATUS.PENDING,
-      payment_provider: "paypal",
-      payment_method: dto.payment_method || "paypal",
+      payment_provider: "ikhokha",
+      payment_method: dto.payment_method || "card",
       key_status: KEY_STATUS.PENDING_DELIVERY,
       whatsapp_link: whatsappLink || null,
     }).select().single();
@@ -55,6 +55,16 @@ export class OrdersService {
       .select().single();
     if (error) throw new Error(error.message);
     return data as Order;
+  }
+
+  async setPaymentDetails(orderId: string, paymentReferenceId: string, amount: number, currency: string): Promise<void> {
+    const { error } = await supabase.from("orders").update({
+      payfast_payment_id: paymentReferenceId,
+      amount,
+      currency,
+      updated_at: new Date().toISOString(),
+    }).eq("order_id", orderId);
+    if (error) throw new Error(error.message);
   }
 
   async markAsCancelled(orderId: string): Promise<Order> {

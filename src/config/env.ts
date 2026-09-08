@@ -7,9 +7,7 @@ const parseOrigins = (value?: string): string[] => {
 };
 
 const isProduction = process.env.NODE_ENV === "production";
-const paypalMode = (process.env.PAYPAL_MODE || "sandbox").toLowerCase();
-const isPaypalProduction = paypalMode === "production" || paypalMode === "live";
-const isPaypalMock = !isProduction && paypalMode === "mock";
+const ikhokhaMode = (process.env.IKHOKHA_MODE || "live").toLowerCase();
 const requiredProductionEnv = [
   "JWT_SECRET",
   "SUPABASE_URL",
@@ -18,6 +16,11 @@ const requiredProductionEnv = [
   "EMAIL_FROM",
   "ADMIN_EMAIL",
   "ADMIN_PASSWORD",
+  "IKHOKHA_APP_ID",
+  "IKHOKHA_APP_SECRET",
+  "IKHOKHA_REQUESTER_URL",
+  "IKHOKHA_CALLBACK_URL",
+  "IKHOKHA_ZAR_PER_USD",
 ];
 
 if (isProduction) {
@@ -29,6 +32,11 @@ if (isProduction) {
   if (process.env.JWT_SECRET === "fallback-secret") {
     throw new Error("[env] JWT_SECRET must be changed in production.");
   }
+}
+
+const zarPerUsd = Number(process.env.IKHOKHA_ZAR_PER_USD || "18");
+if (!Number.isFinite(zarPerUsd) || zarPerUsd <= 0) {
+  throw new Error("[env] IKHOKHA_ZAR_PER_USD must be a positive number.");
 }
 
 export const config = {
@@ -44,14 +52,18 @@ export const config = {
     url: process.env.SUPABASE_URL || "",
     serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
   },
-  paypal: {
-    clientId: process.env.PAYPAL_CLIENT_ID || "",
-    clientSecret: process.env.PAYPAL_CLIENT_SECRET || "",
-    mode: isPaypalMock ? "mock" : isPaypalProduction ? "production" : "sandbox",
-    apiUrl: isPaypalProduction ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com",
-    returnUrl: process.env.PAYPAL_RETURN_URL || process.env.FRONTEND_URL || "",
-    cancelUrl: process.env.PAYPAL_CANCEL_URL || process.env.FRONTEND_URL || "",
-    currency: process.env.PAYPAL_CURRENCY || "USD",
+  ikhokha: {
+    appId: process.env.IKHOKHA_APP_ID || "",
+    appSecret: process.env.IKHOKHA_APP_SECRET || "",
+    mode: ikhokhaMode,
+    apiUrl: (process.env.IKHOKHA_API_URL || "https://api.ikhokha.com").replace(/\/$/, ""),
+    requesterUrl: process.env.IKHOKHA_REQUESTER_URL || process.env.FRONTEND_URL || "",
+    callbackUrl: process.env.IKHOKHA_CALLBACK_URL || "",
+    successUrl: process.env.IKHOKHA_SUCCESS_URL || `${process.env.FRONTEND_URL || "http://localhost:3000"}/success`,
+    failureUrl: process.env.IKHOKHA_FAILURE_URL || `${process.env.FRONTEND_URL || "http://localhost:3000"}/shop?failed=1`,
+    cancelUrl: process.env.IKHOKHA_CANCEL_URL || `${process.env.FRONTEND_URL || "http://localhost:3000"}/shop?cancelled=1`,
+    currency: "ZAR",
+    zarPerUsd,
   },
   email: {
     from: process.env.EMAIL_FROM || "",

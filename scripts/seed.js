@@ -32,7 +32,7 @@ const products = [
       "RSI, Bollinger Bands & Moving Averages",
     ],
     price: 30.0,
-    payment_link: 'https://www.paypal.com/ncp/payment/BN6GN4T6PX5LJ',
+    payment_link: null,
     is_visible: true,
   },
   {
@@ -48,7 +48,7 @@ const products = [
       "High-probability setups only",
     ],
     price: 21.0,
-    payment_link: 'https://www.paypal.com/ncp/payment/775S47TLGNZHA',
+    payment_link: null,
     is_visible: true,
   },
 ];

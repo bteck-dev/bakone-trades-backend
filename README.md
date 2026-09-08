@@ -1,94 +1,56 @@
 # Bakone Trades Backend API
 
-TypeScript, Express, Supabase, Docker, PayPal, and Resend.
+TypeScript, Express, Supabase, iKhokha, and Resend backend for the Bakone bot store.
 
-Keys are generated manually on RoboTrader, then delivered to customers by WhatsApp or email from the admin workflow.
+## Payment flow
 
-## Main Endpoints
+1. `POST /api/payments/checkout` creates a pending order and a unique iKhokha payment link.
+2. The customer completes payment on iKhokha.
+3. `POST /api/payments/webhook` verifies iKhokha's HMAC signature and confirms the order.
+4. The success return also checks payment status directly with iKhokha as a fallback.
+5. Confirmation emails are sent once; repeated callbacks are safe.
 
-### Public
+The product catalog remains priced in USD. `IKHOKHA_ZAR_PER_USD` converts that price to the ZAR amount charged and stored on the order. Keep this rate current.
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/health` | Health check |
-| GET | `/api/health/ping` | Quick ping |
-| GET | `/api/products` | Visible products |
-| GET | `/api/products/:slug` | Product by slug |
-| POST | `/api/payments/checkout` | Create PayPal checkout and return approval URL |
-| GET | `/api/payments/checkout/redirect` | Create checkout and redirect customer to PayPal |
+## Setup
 
-### Admin
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/auth/login` | Admin login |
-| GET | `/api/auth/me` | Current admin |
-| POST | `/api/auth/change-password` | Change password |
-| GET | `/api/products/admin/all` | All products |
-| PUT | `/api/products/:id` | Update product |
-| GET | `/api/orders` | Orders |
-| GET | `/api/orders/pending-delivery` | Paid orders awaiting key delivery |
-| GET | `/api/orders/export/csv` | Export orders CSV |
-| GET | `/api/orders/:orderId` | Single order |
-| PATCH | `/api/orders/:orderId/deliver` | Mark key delivered |
-| GET | `/api/dashboard/stats` | Dashboard metrics |
-| GET | `/api/audit` | Audit logs |
-
-## Payment Flow
-
-1. Customer submits checkout details.
-2. Backend creates a pending order in Supabase.
-3. Backend creates a PayPal order with `intent: CAPTURE`.
-4. Customer approves payment on PayPal.
-5. PayPal redirects to `/api/payments/return/:orderId`.
-6. Backend captures the PayPal order, marks the order paid, and sends confirmation/admin emails.
-7. Admin manually generates and delivers the RoboTrader license key.
-
-## Environment
-
-Create `.env` locally or add these values in your hosting provider:
-
-```env
-NODE_ENV=production
-PORT=5000
-FRONTEND_URL=https://your-frontend-domain.com
-CORS_ORIGINS=https://your-frontend-domain.com
-JWT_SECRET=replace-with-a-long-random-secret
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=replace-with-service-role-key
-
-PAYPAL_CLIENT_ID=your-client-id
-PAYPAL_CLIENT_SECRET=your-client-secret
-PAYPAL_MODE=live
-PAYPAL_RETURN_URL=https://your-frontend-domain.com/success
-PAYPAL_CANCEL_URL=https://your-frontend-domain.com/shop?cancelled=1
-PAYPAL_CURRENCY=USD
-
-RESEND_API_KEY=re_xxxxxxxxxxxxxxxxx
-EMAIL_FROM=Bakone Trades <support@your-domain.com>
-
-ADMIN_EMAIL=admin@example.com
-ADMIN_PASSWORD=replace-with-admin-password
-ADMIN_WHATSAPP=+27000000000
-```
-
-Use `PAYPAL_MODE=mock` for local checkout without external PayPal credentials. Use `PAYPAL_MODE=sandbox` with sandbox credentials to test PayPal itself, and `PAYPAL_MODE=live` with live credentials for real payments.
-
-## Commands
+Copy `.env.example` to `.env`, supply the real values, then run:
 
 ```bash
 npm install
-npm run dev
 npm run build
-npm start
 npm test
+npm run dev
 ```
 
-## Database
+The iKhokha callback URL must be a public HTTPS URL ending in `/api/payments/webhook`. Generate the Application ID and Application Secret in iKhokha Merchant Dashboard under **Integrations > Payment API**.
 
-Run `SUPABASE_SCHEMA.sql` in the Supabase SQL Editor before production traffic.
+## Database migrations
 
-## Checkout Test
+Run pending migrations locally with:
+
+```bash
+npm run migrate
+```
+
+This needs `SUPABASE_DB_URL` and the PostgreSQL `psql` client. Applied files are recorded in `public.schema_migrations` and will not run twice.
+
+The GitHub Actions workflow applies migrations only after a push to `main`. Create a GitHub environment named `production` and add a secret named `SUPABASE_DB_URL` to it.
+
+For a brand-new database, run `SUPABASE_SCHEMA.sql` once before the versioned migrations.
+
+## Main endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/health` | Service health |
+| GET | `/api/products` | Visible products |
+| POST | `/api/payments/checkout` | Create iKhokha checkout |
+| POST | `/api/payments/webhook` | Signed iKhokha callback |
+| GET | `/api/payments/return/:orderId` | Verify and finalize payment return |
+| GET | `/api/orders` | Admin order list |
+
+## Checkout request
 
 ```bash
 curl -X POST http://localhost:5000/api/payments/checkout \
@@ -96,4 +58,4 @@ curl -X POST http://localhost:5000/api/payments/checkout \
   -d '{"customer_name":"John Dube","customer_email":"john@example.com","customer_phone":"+27821234567","product_id":"YOUR_PRODUCT_UUID"}'
 ```
 
-Open the returned `approvalUrl` to approve the payment with PayPal.
+Redirect the browser to the returned `paymentLink`.

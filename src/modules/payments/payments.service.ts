@@ -1,168 +1,59 @@
+import crypto from "crypto";
 import { config } from "../../config/env";
 
-type PayPalLink = {
-  href: string;
-  rel: string;
-  method?: string;
-};
+type CreatePaymentResponse = { responseCode: string; message?: string; paylinkUrl?: string; paylinkID?: string };
+export type IkhokhaPaymentStatus = { paylinkID: string; status: string; amount?: number; externalTransactionID?: string };
+export type IkhokhaWebhook = { paylinkID: string; status: string; externalTransactionID: string; responseCode: string; text?: unknown };
 
-type PayPalOrderResponse = {
-  id: string;
-  status: string;
-  links?: PayPalLink[];
-};
-
-type PayPalCaptureResponse = {
-  id: string;
-  status: string;
-  purchase_units?: Array<{
-    payments?: {
-      captures?: Array<{
-        id: string;
-        status: string;
-      }>;
-    };
-  }>;
-};
-
-const cleanValue = (value: string): string => value.trim();
+const jsStringEscape = (value: string): string =>
+  value.replace(/[\\"']/g, "\\$&").replace(/\u0000/g, "\\0");
 
 export class PaymentsService {
-  private accessToken?: { value: string; expiresAt: number };
-
-  private async getAccessToken(): Promise<string> {
-    if (this.accessToken && this.accessToken.expiresAt > Date.now() + 60_000) {
-      return this.accessToken.value;
-    }
-
-    if (!config.paypal.clientId || !config.paypal.clientSecret) {
-      throw new Error("PayPal credentials are not configured");
-    }
-
-    const credentials = Buffer.from(`${config.paypal.clientId}:${config.paypal.clientSecret}`).toString("base64");
-    const response = await fetch(`${config.paypal.apiUrl}/v1/oauth2/token`, {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${credentials}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: "grant_type=client_credentials",
-    });
-
-    const body = await response.json() as { access_token?: string; expires_in?: number; error_description?: string };
-
-    if (!response.ok || !body.access_token) {
-      throw new Error(body.error_description || "Could not authenticate with PayPal");
-    }
-
-    this.accessToken = {
-      value: body.access_token,
-      expiresAt: Date.now() + ((body.expires_in || 300) * 1000),
-    };
-
-    return body.access_token;
+  private sign(path: string, body = ""): string {
+    return crypto.createHmac("sha256", config.ikhokha.appSecret.trim())
+      .update(jsStringEscape(path + body)).digest("hex");
   }
 
-  private async requestPayPal<T>(path: string, init: RequestInit): Promise<T> {
-    const token = await this.getAccessToken();
-    const response = await fetch(`${config.paypal.apiUrl}${path}`, {
+  private assertConfigured(): void {
+    if (!config.ikhokha.appId || !config.ikhokha.appSecret) throw new Error("iKhokha credentials are not configured");
+  }
+
+  private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
+    this.assertConfigured();
+    const body = typeof init.body === "string" ? init.body : "";
+    const response = await fetch(`${config.ikhokha.apiUrl}${path}`, {
       ...init,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        ...(init.headers || {}),
-      },
+      headers: { Accept: "application/json", "Content-Type": "application/json", "IK-APPID": config.ikhokha.appId.trim(), "IK-SIGN": this.sign(path, body), ...(init.headers || {}) },
     });
-
-    const body = await response.json().catch(() => ({})) as T & {
-      message?: string;
-      details?: Array<{ issue?: string; description?: string }>;
-    };
-
-    if (!response.ok) {
-      const detail = body.details?.[0]?.description || body.details?.[0]?.issue || body.message;
-      throw new Error(detail || "PayPal request failed");
-    }
-
-    return body as T;
+    const payload = await response.json().catch(() => ({})) as T & { message?: string };
+    if (!response.ok) throw new Error(payload.message || `iKhokha request failed (${response.status})`);
+    return payload;
   }
 
-  async createCheckout(params: {
-    orderId: string;
-    productName: string;
-    amount: number;
-    currency: string;
-    returnUrl: string;
-    cancelUrl: string;
-  }): Promise<{ paypalOrderId: string; approvalUrl: string; status: string }> {
-    if (config.paypal.mode === "mock") {
-      const paypalOrderId = `MOCK-${cleanValue(params.orderId)}`;
-      return {
-        paypalOrderId,
-        approvalUrl: `${params.returnUrl}&token=${encodeURIComponent(paypalOrderId)}`,
-        status: "CREATED",
-      };
-    }
-
-    const currency = cleanValue(params.currency || config.paypal.currency).toUpperCase();
-    const order = await this.requestPayPal<PayPalOrderResponse>("/v2/checkout/orders", {
-      method: "POST",
-      headers: {
-        "PayPal-Request-Id": cleanValue(params.orderId),
-      },
-      body: JSON.stringify({
-        intent: "CAPTURE",
-        purchase_units: [{
-          reference_id: cleanValue(params.orderId),
-          description: cleanValue(params.productName),
-          amount: {
-            currency_code: currency,
-            value: params.amount.toFixed(2),
-          },
-        }],
-        payment_source: {
-          paypal: {
-            experience_context: {
-              brand_name: "Bakone Trades",
-              landing_page: "LOGIN",
-              user_action: "PAY_NOW",
-              return_url: params.returnUrl,
-              cancel_url: params.cancelUrl,
-            },
-          },
-        },
-      }),
+  async createCheckout(params: { orderId: string; productName: string; amount: number; callbackUrl: string; successUrl: string; failureUrl: string; cancelUrl: string }): Promise<{ paymentId: string; paymentUrl: string }> {
+    const body = JSON.stringify({
+      entityID: config.ikhokha.appId.trim(), externalEntityID: params.orderId,
+      amount: Math.round(params.amount * 100), currency: config.ikhokha.currency,
+      requesterUrl: config.ikhokha.requesterUrl, description: params.productName,
+      paymentReference: params.orderId, mode: config.ikhokha.mode, externalTransactionID: params.orderId,
+      urls: { callbackUrl: params.callbackUrl, successPageUrl: params.successUrl, failurePageUrl: params.failureUrl, cancelUrl: params.cancelUrl },
     });
-
-    const approvalUrl = order.links?.find((link) => link.rel === "approve" || link.rel === "payer-action")?.href;
-
-    if (!order.id || !approvalUrl) {
-      throw new Error("PayPal did not return an approval URL");
-    }
-
-    return { paypalOrderId: order.id, approvalUrl, status: order.status };
+    const result = await this.request<CreatePaymentResponse>("/public-api/v1/api/payment", { method: "POST", body });
+    if (result.responseCode !== "00" || !result.paylinkID || !result.paylinkUrl) throw new Error(result.message || "iKhokha did not create a payment link");
+    return { paymentId: result.paylinkID, paymentUrl: result.paylinkUrl };
   }
 
-  async captureOrder(paypalOrderId: string): Promise<{ paypalOrderId: string; captureId: string; status: string }> {
-    if (config.paypal.mode === "mock") {
-      return {
-        paypalOrderId,
-        captureId: `MOCK-CAPTURE-${paypalOrderId.replace(/^MOCK-/, "")}`,
-        status: "COMPLETED",
-      };
-    }
+  async getStatus(orderId: string): Promise<IkhokhaPaymentStatus> {
+    return this.request<IkhokhaPaymentStatus>(`/public-api/v1/api/getStatus/external?externalReference=${encodeURIComponent(orderId)}`);
+  }
 
-    const capture = await this.requestPayPal<PayPalCaptureResponse>(
-      `/v2/checkout/orders/${encodeURIComponent(paypalOrderId)}/capture`,
-      { method: "POST", body: "{}" }
-    );
-    const captureId = capture.purchase_units?.[0]?.payments?.captures?.[0]?.id || capture.id;
-
-    return {
-      paypalOrderId: capture.id,
-      captureId,
-      status: capture.status,
-    };
+  verifyWebhook(path: string, body: IkhokhaWebhook, appId: unknown, signature: unknown): boolean {
+    if (typeof appId !== "string" || typeof signature !== "string" || appId !== config.ikhokha.appId) return false;
+    const normalized = { ...body };
+    delete normalized.text;
+    const expected = this.sign(path, JSON.stringify(normalized));
+    const received = signature.toLowerCase();
+    return expected.length === received.length && crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(received));
   }
 }
 
