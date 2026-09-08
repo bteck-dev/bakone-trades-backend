@@ -17,11 +17,9 @@ IKHOKHA_ZAR_PER_USD=18.00
 
 `IKHOKHA_CALLBACK_URL` must be publicly reachable over HTTPS. Do not expose `IKHOKHA_APP_SECRET` or `SUPABASE_SERVICE_ROLE_KEY` in the frontend.
 
-## Automatic migrations
+## Database update
 
-In GitHub repository settings, create an environment named `production` and add its `SUPABASE_DB_URL` secret. Pushes to `main` apply pending migrations to production. The workflow can also be run manually.
-
-Use Supabase's direct or session-pooler PostgreSQL connection string. Transaction-pooler URLs may not support migration operations reliably.
+Database migrations are manual. Before deploying the iKhokha application code, open the production project in Supabase SQL Editor and run `IKHOKHA_MIGRATION.sql` once. You do not need `SUPABASE_DB_URL` in GitHub or Render.
 
 ## Deploy commands
 
